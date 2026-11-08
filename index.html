@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NYC VIBES — Интерактивный гид по Нью-Йорку</title>
+
+  <!-- Шрифты -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    :root {
+      --bg-deep: #0b1121;
+      --bg-surface: #131c31;
+      --bg-card: #19243e;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-pink: #f43f5e;
+      --accent-amber: #f59e0b;
+      --font-sans: 'Inter', sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+    }
+
+    .brand-badge {
+      background: var(--accent-pink);
+      color: white;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .brand h1 {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      margin: 0;
+    }
+
+    .brand-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 24px 64px;
+    }
+
+    .days-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .day-btn {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .day-btn:hover { background: var(--bg-card); color: var(--text-main); }
+    .day-btn.active {
+      background: var(--accent-pink);
+      color: white;
+      border-color: var(--accent-pink);
+      box-shadow: 0 4px 20px rgba(244, 63, 94, 0.35);
+    }
+
+    .day-banner {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .day-banner h2 { font-family: var(--font-serif); font-size: 24px; margin-bottom: 4px; }
+    .day-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .meta-tag { background: rgba(255, 255, 255, 0.06); padding: 6px 12px; border-radius: 8px; font-size: 13px; color: #cbd5e1; }
+
+    .map-wrapper {
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 32px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    #map { height: 400px; width: 100%; background: #131c31; }
+
+    .places-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .place-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.22s, border-color 0.22s;
+      cursor: pointer;
+    }
+
+    .place-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(244, 63, 94, 0.5);
+    }
+
+    .card-img-wrap {
+      position: relative;
+      height: 195px;
+      width: 100%;
+      background: linear-gradient(135deg, #1e293b, #311042);
+      overflow: hidden;
+    }
+
+    .card-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .step-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(11, 17, 33, 0.85);
+      color: white;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+    .audio-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--accent-amber);
+      color: #0b1121;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+    .card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; flex-grow: 1; }
+    .card-area { font-size: 12px; text-transform: uppercase; color: var(--accent-pink); font-weight: 600; margin-bottom: 4px; }
+    .card-title { font-family: var(--font-serif); font-size: 20px; margin-bottom: 8px; }
+    .card-desc { font-size: 14px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 16px; flex-grow: 1; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+    .card-time { font-size: 12px; color: #cbd5e1; }
+
+    .btn-open {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--accent-pink);
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-open:hover { background: var(--accent-pink); color: white; }
+
+    /* Страница объекта */
+    #detailPage { display: none; }
+    .btn-back {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .detail-hero {
+      position: relative;
+      height: 360px;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 28px;
+      background: #1e293b;
+    }
+    .detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+    .detail-hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(11, 17, 33, 0.95) 0%, rgba(11, 17, 33, 0.35) 55%, transparent 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 32px;
+    }
+
+    .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .detail-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .detail-card h3 { font-family: var(--font-serif); font-size: 20px; margin-bottom: 12px; }
+    .detail-card p { color: #cbd5e1; font-size: 15px; margin-bottom: 14px; }
+
+    .fact-box {
+      background: rgba(244, 63, 94, 0.08);
+      border-left: 4px solid var(--accent-pink);
+      padding: 16px 20px;
+      border-radius: 0 12px 12px 0;
+      margin-top: 16px;
+    }
+    .fact-box strong { display: block; color: var(--accent-pink); font-size: 13px; text-transform: uppercase; margin-bottom: 4px; }
+
+    /* Плеер для MP3 */
+    .audio-player-box {
+      background: linear-gradient(135deg, #1e1b4b 0%, #2e1065 100%);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+    .audio-player-box h3 { color: var(--accent-amber); margin-bottom: 10px; }
+    audio { width: 100%; margin-top: 10px; }
+
+    .info-list { list-style: none; }
+    .info-list li { padding: 12px 0; border-bottom: 1px solid var(--border-subtle); font-size: 14px; }
+    .info-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+    .info-val { font-weight: 600; color: var(--text-main); }
+    .info-val a { color: var(--accent-pink); text-decoration: none; }
+
+    #miniMap { height: 200px; width: 100%; border-radius: 12px; margin-top: 12px; }
+
+    @media (max-width: 820px) { .detail-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand" onclick="goHome()">
+        <span class="brand-badge">4 DAYS</span>
+        <div>
+          <h1>NYC VIBES</h1>
+          <div class="brand-sub">Интерактивный путеводитель</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ГЛАВНАЯ СТРАНИЦА -->
+    <div id="homePage">
+      <div class="days-bar" id="dayButtons"></div>
+      <div class="day-banner" id="dayBanner"></div>
+      <div class="map-wrapper"><div id="map"></div></div>
+      <div class="places-grid" id="places"></div>
+    </div>
+
+    <!-- СТРАНИЦА ОБЪЕКТА -->
+    <div id="detailPage">
+      <button class="btn-back" onclick="goHome()">← Вернуться к списку</button>
+
+      <div class="detail-hero">
+        <img id="detailImg" src="" alt="">
+        <div class="detail-hero-overlay">
+          <h1 class="detail-hero-title" id="detailTitle" style="font-family:var(--font-serif); font-size:32px;"></h1>
+          <div id="detailSubtitle" style="color:#cbd5e1;"></div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <!-- Блок аудиогида с MP3 файлом -->
+          <div class="audio-player-box" id="audioPlayerBox" style="display: none;">
+            <h3>🎧 Аудиогид (Русская версия)</h3>
+            <p style="font-size:13px; color:#cbd5e1;" id="audioDescText"></p>
+            <audio id="audioElement" controls>
+              <source id="audioSource" src="" type="audio/mp3">
+              Ваш браузер не поддерживает аудиоплеер.
+            </audio>
+          </div>
+
+          <div class="detail-card">
+            <h3>Об этом месте</h3>
+            <p id="detailDescription"></p>
+            <div class="fact-box">
+              <strong>Интересный факт</strong>
+              <span id="detailFact"></span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="detail-card">
+            <h3>Практическая информация</h3>
+            <ul class="info-list">
+              <li><span class="info-label">Адрес</span><span class="info-val" id="detailAddress"></span></li>
+              <li><span class="info-label">Стоимость</span><span class="info-val" id="detailPrice"></span></li>
+              <li><span class="info-label">Часы работы</span><span class="info-val" id="detailHours"></span></li>
+              <li><span class="info-label">Сайт</span><span class="info-val"><a id="detailUrl" href="#" target="_blank">Перейти ↗</a></span></li>
+            </ul>
+            <div id="miniMap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const dayInfo = {
+  1: {
+    title: "День 1 — Midtown Manhattan",
+    summary: "Небоскрёбы ар-деко и огни Таймс-сквер",
+    distance: "6 км",
+    transport: "Пешком",
+    budget: "≈ $35–55"
+  },
+
+  2: {
+    title: "День 2 — Нижний Манхэттен",
+    summary: "Уолл-стрит, Мемориал 9/11 и Окулус",
+    distance: "3.5 км",
+    transport: "Метро + пешком",
+    budget: "≈ $45–75"
+  },
+
+  3: {
+    title: "День 3 — Бруклин и мост",
+    summary: "DUMBO, набережная и Бруклинский мост",
+    distance: "4 км",
+    transport: "Метро + пешком",
+    budget: "≈ $25–45"
+  },
+
+  4: {
+    title: "День 4 — Центральный парк и Мет",
+    summary: "Аллеи парка, мосты и музей Метрополитен",
+    distance: "4.5 км",
+    transport: "Пешком",
+    budget: "≈ $45–65"
+  }
+    };
+   const attractions = [
+  // ========== ДЕНЬ 1 — MIDTOWN ==========
+  {
+    id: "empire",
+    day: 1,
+    step: 1,
+    name: "Эмпайр-стейт-билдинг",
+    nameEn: "Empire State Building",
+    area: "Midtown Manhattan",
+    address: "20 W 34th St., New York, NY 10001",
+    lat: 40.748817,
+    lng: -73.985428,
+    visitTime: "15 мин (осмотр снаружи)",
+    nextStep: "Пешком ≈ 1,2 км (15 мин) до Grand Central",
+    price: "Снаружи: Бесплатно (Смотровая: от $46)",
+    hours: "Круглосуточно (снаружи)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.esbnyc.com",
+    image: "https://images.unsplash.com/photo-1541336032412-2048a678540d?auto=format&fit=crop&w=800&q=80",
+    description: "Всемирно известный 102-этажный небоскреб в стиле ар-деко. Входит в базовый осмотр снаружи без подъема на смотровую площадку.",
+    fact: "Строительство прошло в рекордные 410 дней. Является символом Нью-Йорка и главным визуальным ориентиром Midtown."
+  },
+  {
+    id: "grand-central",
+    day: 1,
+    step: 2,
+    name: "Центральный вокзал Гранд-Сентрал",
+    nameEn: "Grand Central Terminal",
+    area: "Midtown Manhattan",
+    address: "89 E 42nd St, New York, NY 10017",
+    lat: 40.752726,
+    lng: -73.977229,
+    visitTime: "45 мин",
+    nextStep: "Пешком ≈ 0,6 км (8 мин) до NY Public Library",
+    price: "Бесплатно",
+    hours: "05:11 - 02:00 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" },
+      { name: "Café рядом с Grand Central", type: "🍴 Кафе", price: "$$" }
+    ],
+    url: "https://www.grandcentralterminal.com",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJXHV8u7Q3C_nhLOe9HxZdEtqJuD2ZC4VOgwemgVHgJUovyxVGhnou5NE&s=10",
+    description: "Исторический железнодорожный вокзал Манхэттена с великолепной архитектурой, знаменитыми часами и расписным сводом.",
+    fact: "На потолке Главного вестибюля изображены созвездия в обратном (зеркальном) порядке. На вокзале есть секретная 'Шепчущая галерея'.",
+    audioFile: "audio/grand-central.mp3",
+    audioText: `Добро пожаловать в Grand Central Terminal — место, где история Нью-Йорка буквально встречается с его современным ритмом.
+
+Остановитесь на несколько секунд и просто посмотрите вокруг. Перед вами главный зал вокзала — Main Concourse. Его огромное пространство, высокие арочные окна и золотисто-зелёные оттенки создают ощущение, будто вы оказались не на вокзале, а внутри какого-то огромного городского собора.
+
+А теперь поднимите взгляд вверх. На потолке изображено ночное небо с созвездиями. Интересная деталь: рисунок расположен не совсем так, как настоящий вид на небо с Земли. По одной из популярных версий, при реставрации было решено сохранить эту особенность как часть истории здания.
+
+В самом центре зала находятся знаменитые часы — один из самых узнаваемых символов Grand Central. Их четырёхсторонний циферблат выполнен из опала и окружён декоративными элементами. Вокруг этих часов десятилетиями встречались пассажиры, назначались свидания и начинались путешествия.
+
+Но Grand Central — это не только красивый интерьер. В 1970-е годы зданию угрожала реконструкция и возможное разрушение. Для Нью-Йорка это был момент, когда пришлось решить, что важнее: освободить место для нового строительства или сохранить часть собственной истории.
+
+В защиту вокзала выступили общественность, архитекторы и активисты, среди которых была Жаклин Кеннеди Онассис. Здание сохранили.
+
+И сегодня Grand Central продолжает выполнять свою первоначальную функцию. Здесь люди спешат на поезд, встречаются после долгой разлуки, покупают кофе, назначают свидания и просто проходят через зал по дороге домой.
+
+Попробуйте на минуту замедлиться. Посмотрите на людей вокруг, прислушайтесь к звукам вокзала и представьте, сколько историй прошло через это место.
+
+Grand Central — это не просто станция. Это одна из тех точек Нью-Йорка, где прошлое и настоящее существуют одновременно.`
+   },
+  {
+     id: "chrysler",
+    day: 1,
+    step: 3,
+    name: "Крайслер-билдинг",
+    nameEn: "Chrysler Building",
+    area: "Midtown Manhattan",
+    address: "405 Lexington Ave, New York, NY 10174",
+    lat: 40.751652,
+    lng: -73.975311,
+    visitTime: "10 мин",
+    nextStep: "Рядом с Grand Central",
+    price: "Бесплатно (осмотр снаружи)",
+    hours: "Круглосуточно (снаружи)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.chryslerbuilding.com",
+    image: "https://facts.museum/media/facts/1260/image.png",
+    description: "Выдающийся пример архитектуры ар-деко с узнаваемым стальным шпилем и орнаментами в виде автомобильных колпаков.",
+    fact: "В течение 11 месяцев в 1930–1931 годах было самым высоким зданием в мире, пока его не превзошел Empire State Building."
+  },
+  {
+    id: "nypl",
+    day: 1,
+    step: 4,
+    name: "Нью-Йоркская публичная библиотека + Брайант-парк",
+    nameEn: "New York Public Library + Bryant Park",
+    area: "Midtown Manhattan",
+    address: "476 5th Ave, New York, NY 10018",
+    lat: 40.753182,
+    lng: -73.982253,
+    visitTime: "1 ч",
+    nextStep: "Пешком ≈ 0,8 км (10 мин) до Rockefeller Center",
+    price: "Бесплатно",
+    hours: "Пн,Чт,Пт,Сб 10:00-18:00; Вт,Ср 10:00-20:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nypl.org",
+    image: "https://americanbutler.ru/storage/app/media/tours/new-york/attractions/public-library/new-york-publick-library-05.webp",
+    description: "Одна из крупнейших библиотек мира с величественным фасадом из белого мрамора и знаменитым читальным залом.",
+    fact: "Вход охраняют два каменных льва — Терпение (Patience) и Мужество (Fortitude). Парк расположен над подземными книгохранилищами."
+  },
+  {
+    id: "rockefeller",
+    day: 1,
+    step: 5,
+    name: "Рокфеллеровский центр",
+    nameEn: "Rockefeller Center",
+    area: "Midtown Manhattan",
+    address: "45 Rockefeller Plaza, New York, NY 10111",
+    lat: 40.758740,
+    lng: -73.978674,
+    visitTime: "1 ч",
+    nextStep: "Рядом (3 мин) до St. Patrick's Cathedral",
+    price: "Бесплатно (Территория) / Top of the Rock от $40",
+    hours: "Круглосуточно (Территория)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.rockefellercenter.com",
+    image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?auto=format&fit=crop&w=800&q=80",
+    description: "Масштабный комплекс из 19 зданий, где устанавливают главную рождественскую елку города и работает смотровая Top of the Rock.",
+    fact: "В центре установлена знаменитая позолоченная статуя Прометея работы Пола Мэншипа.",
+    audioFile: "audio/rockefeller.mp3",
+    audioText: `Добро пожаловать в Рокфеллеровский центр — место, где Нью-Йорк показывает, как можно построить целый город внутри города.
+
+Остановитесь на несколько секунд. Перед вами Нижняя площадь — тот самый открытый двор, который зимой превращается в каток, а летом становится сценой для концертов и встреч. Над вами возвышается 30 Рокфеллер-Плаза. Её известняковые стены, ступенчатый силуэт и вертикальные линии — чистый арт-деко тридцатых годов.
+
+Поднимите взгляд на золотого Прометея. Он держит огонь, и вокруг него десятилетиями кружатся люди — кто-то катается на коньках, кто-то просто стоит и смотрит вверх.
+
+Рокфеллеровский центр строили в самые тяжёлые годы Великой депрессии. Когда почти всё останавливалось, здесь продолжали поднимать стены. Это был не просто строительный проект — это был жест уверенности.
+
+Сегодня здесь по-прежнему кипит жизнь. Люди спешат на работу, туристы фотографируют ёлку, кто-то назначает встречу у Атласа на Пятой авеню.
+
+Попробуйте замедлиться. Послушайте, как звучит этот комплекс — шаги, голоса, музыка из Radio City.
+
+Рокфеллеровский центр — это не просто офисы и магазины. Это одна из тех точек Нью-Йорка, где даже в самом центре мегаполиса можно почувствовать, что город когда-то верил в собственное будущее.`
+  },
+  {
+    id: "st-patrick",
+    day: 1,
+    step: 6,
+    name: "Собор Святого Патрика",
+    nameEn: "St. Patrick's Cathedral",
+    area: "Midtown Manhattan",
+    address: "5th Ave, New York, NY 10022",
+    lat: 40.758462,
+    lng: -73.975993,
+    visitTime: "20 мин",
+    nextStep: "Пешком ≈ 0,8 км (10 мин) до Times Square",
+    price: "Бесплатно (добровольные пожертвования)",
+    hours: "06:45 - 20:45 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://saintpatrickscathedral.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYLkEgsOpT0D2CgM7t2eU-Eo8d_F4vYcK7Elk-I56YNA&s=10",
+    description: "Крупнейший построенный в неоготическом стиле католический собор в США, расположенный напротив Рокфеллеровского центра.",
+    fact: "Шпили собора поднимаются на высоту 100 метров. Собор облицован белым мрамором."
+  },
+  {
+    id: "times-square",
+    day: 1,
+    step: 7,
+    name: "Таймс-сквер",
+    nameEn: "Times Square",
+    area: "Midtown Manhattan",
+    address: "Broadway & W 46th St, New York, NY 10036",
+    lat: 40.758896,
+    lng: -73.985130,
+    visitTime: "1 ч",
+    nextStep: "Пешком до отеля у Bryant Park",
+    price: "Бесплатно",
+    hours: "Круглосуточно (вечером эффектнее)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.timessquarenyc.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2-5wBTEyUkRao4GG2h1Y-rnzrzeVpyS-l6pT-A_JUYQ&s=10",
+    description: "Всемирно известный перекресток Бродвея и Седьмой авеню с гигантскими светодиодными экранами.",
+    fact: "Ежегодно в новогоднюю ночь на площадь спускается хрустальный шар.",
+    audioFile: "audio/times-square.mp3",
+   audioText: `Добро пожаловать на Таймс-сквер — место, где Нью-Йорк никогда не спит по-настоящему.
+
+Остановитесь. Просто посмотрите вокруг. Неоновые экраны, бегущие строки, толпа, которая движется во все стороны сразу. Это пересечение Бродвея и Седьмой авеню когда-то называлось Лонгэйкр-сквер. В 1904 году сюда переехала газета The New York Times — и площадь получила своё нынешнее имя.
+
+Поднимите взгляд на One Times Square. Именно с его крыши каждый год в последнюю секунду декабря опускается шар. Традиция, которая началась в 1907 году, до сих пор собирает миллионы людей.
+
+Но Таймс-сквер — это не только праздник. В разные десятилетия он был и блестящим, и тёмным. Здесь были театры, кабаре, потом — упадок, потом — возрождение.
+
+Сегодня здесь снова светло и шумно. Люди фотографируются, покупают билеты в театр, просто стоят и смотрят, как меняются экраны.
+
+Попробуйте на минуту выключить внутренний шум. Прислушайтесь к городу. Представьте, сколько разных Нью-Йорков прошло через этот перекрёсток.
+
+Таймс-сквер — это не просто туристическая открытка. Это пульс города, который бьётся громко, ярко и почти без пауз.`
+  },
+
+  // ========== ДЕНЬ 2 — LOWER MANHATTAN ==========
+  {
+    id: "battery",
+    day: 2,
+    step: 1,
+    name: "Бэттери-парк",
+    nameEn: "Battery Park",
+    area: "Lower Manhattan",
+    address: "State St and Battery Pl, New York, NY 10004",
+    lat: 40.703277,
+    lng: -74.017028,
+    visitTime: "30 мин",
+    nextStep: "Пешком 5 мин",
+    price: "Бесплатно",
+    hours: "06:00 - 00:00 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nycgovparks.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjh81EnCE_ttGlV69HeijamapeV5ci8jSBQVyaY8cU2fbrXu1kLBK7AUvr&s=10",
+    description: "Исторический парк на южной оконечности Манхэттена с панорамным видом на Нью-Йоркскую гавань и Статую Свободы.",
+    fact: "Назван в честь артиллерийских батарей, защищавших поселение Нью-Амстердам в XVII веке."
+  },
+  {
+    id: "charging-bull",
+    day: 2,
+    step: 2,
+    name: "Бык на Уолл-стрит",
+    nameEn: "Charging Bull",
+    area: "Lower Manhattan",
+    address: "Broadway & Morris St, New York, NY 10004",
+    lat: 40.705576,
+    lng: -74.013421,
+    visitTime: "10 мин",
+    nextStep: "Пешком 5 мин",
+    price: "Бесплатно",
+    hours: "Круглосуточно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nycgo.com",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTUb5LsWgfKUwPL6M79U1zh6hH7FyaByXrHtWAYEH6GZw&s=10",
+    description: "Бронзовая скульптура разъяренного быка, символ финансового оптимизма и процветания Уолл-стрит.",
+    fact: "Скульптор Артуро Ди Модика несанкционированно установил 3.2-тонную статую в декабре 1989 года."
+  },
+  {
+    id: "wall-street",
+    day: 2,
+    step: 3,
+    name: "Уолл-стрит, NYSE и Федерал-холл",
+    nameEn: "Wall Street & NYSE / Federal Hall",
+    area: "Lower Manhattan",
+    address: "11 Wall St, New York, NY 10005",
+    lat: 40.706877,
+    lng: -74.008988,
+    visitTime: "30 мин",
+    nextStep: "Пешком 3 мин",
+    price: "Бесплатно (осмотр снаружи)",
+    hours: "Круглосуточно (улица)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nyse.com",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQB-xUEFdLgRxrq2Ez83PqlCJtgJ1kOfPEHMVoj3ZWvTg&s=10",
+    description: "Исторический центр Финансового района Нью-Йорка с монументальным зданием Фондовой биржи и Федерал-холлом.",
+    fact: "В Federal Hall в 1789 году состоялась инаугурация первого президента США Джорджа Вашингтона."
+  },
+  {
+    id: "trinity",
+    day: 2,
+    step: 4,
+    name: "Церковь Троицы",
+    nameEn: "Trinity Church",
+    area: "Lower Manhattan",
+    address: "89 Broadway, New York, NY 10006",
+    lat: 40.708051,
+    lng: -74.012303,
+    visitTime: "15 мин",
+    nextStep: "Пешком ≈ 0,7 км (10 мин)",
+    price: "Бесплатно",
+    hours: "08:30 - 18:00 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://trinitywallstreet.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShNqRBcIbx5dtd8hyAejDw9YQMxnSBW6saP96T5LRgyg&s=10",
+    description: "Историческая епископальная церковь в стиле неоготики. На ее кладбище похоронен Александр Гамильтон.",
+    fact: "Когда текущее здание было завершено в 1846 году, его 86-метровый шпиль был самым высоким сооружением в США."
+  },
+  {
+    id: "911",
+    day: 2,
+    step: 5,
+    name: "Мемориал и музей 11 сентября",
+    nameEn: "9/11 Memorial & Museum",
+    area: "Lower Manhattan",
+    address: "180 Greenwich St, New York, NY 10007",
+    lat: 40.711484,
+    lng: -74.013122,
+    visitTime: "2-2,5 ч",
+    nextStep: "Рядом",
+    price: "Мемориал: Бесплатно. Музей: $33-$36",
+    hours: "Мемориал: 08:00-20:00; Музей: 09:00-19:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.911memorial.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_a0hIyvZq98S4rdC8sYu7M8bmc3IHFZR65EEWJjjBbg&s=10",
+    description: "Мемориальный комплекс на месте башен-близнецов Всемирного торгового центра с бассейнами-водопадами.",
+    fact: "На бронзовых парапетах бассейнов высечены имена 2983 жертв терактов 1993 и 2001 годов.",
+    audioFile: "audio/911-memorial.mp3",
+    audioText: `Добро пожаловать к Мемориалу 11 сентября — месту, где Нью-Йорк хранит самую тяжёлую страницу своей истории.
+
+Остановитесь. Не торопитесь. Перед вами два огромных бассейна. Они стоят точно на месте башен-близнецов. Вода падает со всех четырёх сторон и исчезает в тёмной пустоте в центре. Это самые большие рукотворные водопады в Северной Америке.
+
+Обойдите бассейны медленно. На бронзовых панелях вырезаны имена. Каждое имя стоит рядом с теми, кто был рядом в тот день — по просьбе семей. Вокруг растут болотные дубы. Их специально выбирали, потому что они крепкие и живучие.
+
+Мемориал открыли ровно через десять лет после трагедии. Архитектор Майкл Арад назвал свой проект «Отражение отсутствия». Здесь действительно чувствуется отсутствие — и одновременно присутствие тех, кого уже нет.
+
+Спуститесь ниже, если пойдёте в музей. Там сохранились настоящие стены фундамента, стальные колонны и последний столб, который убрали с площадки последним.
+
+Попробуйте просто постоять. Послушать звук воды. Посмотреть на людей вокруг — кто-то молчит, кто-то плачет, кто-то просто дышит.
+
+Это место не требует слов. Оно говорит само.`
+  },
+  {
+    id: "oculus",
+    day: 2,
+    step: 6,
+    name: "Транспортный узел Окулус",
+    nameEn: "Oculus (WTC Transportation Hub)",
+    area: "Lower Manhattan",
+    address: "Church St, New York, NY 10006",
+    lat: 40.711790,
+    lng: -74.010915,
+    visitTime: "15 мин",
+    nextStep: "Метро в Midtown",
+    price: "Бесплатно",
+    hours: "07:00 - 23:00 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.westfield.com/wtc",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHJda368IAeywMWPtLdv0jC2s2EblakBUX8p-9OW58zA&s=10",
+    description: "Футуристический транспортно-торговый комплекс, спроектированный Сантьяго Калатравой в виде взлетающей белой птицы.",
+    fact: "Каждый год 11 сентября в 10:28 утра световой луч проходит через стеклянную крышу вдоль оси здания."
+  },
+  {
+    id: "one-world",
+    day: 2,
+    step: 7,
+    name: "One World Observatory (Опция)",
+    nameEn: "One World Observatory",
+    area: "Lower Manhattan",
+    address: "117 West St, New York, NY 10007",
+    lat: 40.713010,
+    lng: -74.013160,
+    visitTime: "1,5-2 ч",
+    nextStep: "Возврат в отель на метро",
+    price: "от $35 - $45+",
+    hours: "09:00 - 21:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://oneworldobservatory.com",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrEaAEaAg_khqhjvKlaTsezFAdVL4IpMPH4ykXoFZFUw&s=10",
+    description: "Смотровая площадка на вершине самого высокого здания Западного полушария (541 м).",
+    fact: "Лифты SkyPod поднимаются на 102-й этаж всего за 47 секунд."
+  },
+
+  // ========== ДЕНЬ 3 — BROOKLYN ==========
+  {
+    id: "dumbo",
+    day: 3,
+    step: 1,
+    name: "Район DUMBO и Вашингтон-стрит",
+    nameEn: "DUMBO & Washington Street",
+    area: "Brooklyn",
+    address: "Washington St & Water St, Brooklyn, NY 11201",
+    lat: 40.703212,
+    lng: -73.989603,
+    visitTime: "45 мин",
+    nextStep: "Пешком 5 мин",
+    price: "Бесплатно",
+    hours: "Круглосуточно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://dumbo.is",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSocVV2zlscxpmukgt5uy5Un2twai53dlumnomWwHhEqA&s=10",
+    description: "Живописный исторический уголок Бруклина с мощеными улицами и культовым видом на Манхэттенский мост.",
+    fact: "Аббревиатура DUMBO расшифровывается как 'Down Under the Manhattan Bridge Overpass'.",
+    audioFile: "audio/dumbo.mp3",
+    audioText: `Добро пожаловать в DUMBO — район, который когда-то специально назвали странным словом, чтобы отпугнуть застройщиков.
+
+Остановитесь на Вашингтон-стрит. Посмотрите прямо перед собой. Между кирпичными стенами старых фабрик идеально вписывается арка Манхэттенского моста, а вдали — Эмпайр-Стейт-Билдинг. Этот кадр стал одним из самых узнаваемых в Нью-Йорке.
+
+DUMBO расшифровывается как Down Under the Manhattan Bridge Overpass — «под эстакадой Манхэттенского моста». Художники придумали это название в конце семидесятых, надеясь, что смешное слово отпугнёт девелоперов. Не отпугнуло.
+
+До этого здесь были фабрики. Роберт Гейр изобретал здесь картонные коробки. Здания из армированного бетона тогда считались почти чудом.
+
+Сегодня старые склады превратились в галереи, кофейни и дорогие лофты. Но если присмотреться — брусчатка, чугунные колонны, следы рельсов — прошлое всё ещё здесь.
+
+Походите медленно. Посмотрите, как свет падает между мостом и домами. Послушайте, как гудит город над головой и тихо шумит вода внизу.
+
+DUMBO — это не просто красивый район для фотографий. Это место, где индустриальный Бруклин научился становиться чем-то новым, не стирая себя полностью.`
+  },
+  {
+    id: "brooklyn-bridge-park",
+    day: 3,
+    step: 2,
+    name: "Парк Бруклин-Бридж и Пэббл-Бич",
+    nameEn: "Brooklyn Bridge Park & Pebble Beach",
+    area: "Brooklyn",
+    address: "334 Furman St, Brooklyn, NY 11201",
+    lat: 40.703902,
+    lng: -73.994709,
+    visitTime: "45 мин",
+    nextStep: "Рядом",
+    price: "Бесплатно",
+    hours: "06:00 - 01:00 ежедневно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.brooklynbridgepark.org",
+    image: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/16/52/ce/26/brooklyn-bridge-park.jpg?w=1200&h=-1&s=1",
+    description: "Прибрежный парк вдоль Ист-Ривер с лучшими панорамными видами на силуэт Нижнего Манхэттена и Бруклинский мост.",
+    fact: "Парк спроектирован на месте старых портовых пирсов с экологичной системой сбора дождевой воды."
+  },
+  {
+    id: "janes-carousel",
+    day: 3,
+    step: 3,
+    name: "Карусель Джейн",
+    nameEn: "Jane's Carousel",
+    area: "Brooklyn",
+    address: "1 Old Dock St, Brooklyn, NY 11201",
+    lat: 40.704381,
+    lng: -73.992271,
+    visitTime: "15 мин",
+    nextStep: "Пешком ≈ 1 км (15 мин)",
+    price: "$2 за поездку (осмотр снаружи бесплатно)",
+    hours: "Чт-Вс 11:00 - 18:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://janescarousel.com",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwHlBGSejVZbNTEer6_2XpYlKzwCWT8ZwNdZSwv8NXKA&s=10",
+    description: "Отреставрированная деревянная карусель 1922 года с 48 резными лошадьми в стеклянном павильоне Жана Нувеля.",
+    fact: "Карусель восстанавливали вручную в течение 27 лет до её открытия в парке в 2011 году."
+  },
+  {
+    id: "brooklyn-heights",
+    day: 3,
+    step: 4,
+    name: "Променад Бруклин-Хайтс",
+    nameEn: "Brooklyn Heights Promenade",
+    area: "Brooklyn",
+    address: "Pierrepont Pl, Brooklyn, NY 11201",
+    lat: 40.697010,
+    lng: -73.997615,
+    visitTime: "30 мин",
+    nextStep: "Пешком ≈ 0,8 км (12 мин)",
+    price: "Бесплатно",
+    hours: "Круглосуточно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nycgovparks.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB_EvBrJ1jElXHz-p7P-aIc_huBneE3OMQ-EuQqFcQaw&s=10",
+    description: "Пешеходный променад над шоссе с классическим видом на финансовый центр Манхэттена и Статую Свободы.",
+    fact: "Это была первая консольная конструкция такого типа в США."
+  },
+  {
+    id: "brooklyn-bridge",
+    day: 3,
+    step: 5,
+    name: "Бруклинский мост",
+    nameEn: "Brooklyn Bridge",
+    area: "New York / Brooklyn",
+    address: "Brooklyn Bridge, New York, NY 10038",
+    lat: 40.706086,
+    lng: -73.996864,
+    visitTime: "40 мин",
+    nextStep: "Метро от City Hall",
+    price: "Бесплатно",
+    hours: "Круглосуточно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nyc.gov/dot",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnz1LamnCGO3lxP8qYNNrLQ58F2tmgbd4vEaH6aCBHFQ&s=10",
+    description: "Один из старейших висячих мостов США (1883 г.) с гибридной стальной конструкцией и готическими пилонами.",
+    fact: "В 1884 году П.Т. Барнум провел по мосту 21 слона, чтобы доказать его прочность.",
+    audioFile: "audio/brooklyn-bridge.mp3",
+    audioText: `Добро пожаловать на Бруклинский мост — сооружение, которое когда-то казалось почти невозможным.
+
+Остановитесь на пешеходной дорожке. Посмотрите вдоль кабелей. Две готические башни из гранита и известняка. Тысячи стальных проволок, скрученных в мощные канаты. Деревянный настил под ногами. Всё это — работа семьи Рёблинг.
+
+Джон Рёблинг спроектировал мост, но не дожил до начала строительства. Его сын Вашингтон продолжил работу, а когда сам тяжело заболел, его жена Эмили фактически руководила проектом.
+
+Мост открыли в 1883 году. Он стал самым длинным подвесным мостом в мире. Чтобы доказать его прочность, через него провели двадцать одного слона.
+
+Сегодня по нему каждый день проходят и проезжают десятки тысяч людей. Кто-то идёт пешком из Бруклина в Манхэттен, кто-то просто останавливается, чтобы сделать фото на фоне небоскрёбов.
+
+Попробуйте идти медленно. Почувствуйте, как мост слегка дышит под ногами. Посмотрите вниз на Ист-Ривер и вверх — на башни, которые уже больше ста сорока лет держат этот путь.
+
+Бруклинский мост — это не просто переправа. Это одна из тех вещей, которые Нью-Йорк построил на грани возможного и сделал своей визитной карточкой.`
+  },
+
+  // ========== ДЕНЬ 4 — CENTRAL PARK & THE MET ==========
+  {
+    id: "columbus-circle",
+    day: 4,
+    step: 1,
+    name: "Колумбус-Серкл",
+    nameEn: "Columbus Circle",
+    area: "Upper West Side",
+    address: "848 8th Ave, New York, NY 10019",
+    lat: 40.768090,
+    lng: -73.981886,
+    visitTime: "15 мин",
+    nextStep: "Пешком 5 мин",
+    price: "Бесплатно",
+    hours: "Круглосуточно",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.nycgovparks.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkqmljGVkGTzZ0ExVhscbxSN5LTQczbr3CxGyc1lTt3HtqLo8AQ6f6VAQE&s=10",
+    description: "Круговая развязка на юго-западном углу Центрального парка с памятником Христофору Колумбу.",
+    fact: "Является нулевой точкой, от которой официально измеряются все расстояния до Нью-Йорка."
+  },
+  {
+    id: "bethesda",
+    day: 4,
+    step: 2,
+    name: "The Mall и Бетесда Террас",
+    nameEn: "The Mall & Bethesda Terrace",
+    area: "Central Park",
+    address: "72nd St Cross Drive, Central Park, NY 10021",
+    lat: 40.774020,
+    lng: -73.970894,
+    visitTime: "1 ч",
+    nextStep: "Пешком 10 мин",
+    price: "Бесплатно",
+    hours: "06:00 - 01:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.centralparknyc.org",
+    image: "https://cdn.getyourguide.com/image/format=auto%2Cfit=crop%2Cgravity=auto%2Cquality=60%2Cwidth=400%2Cheight=265%2Cdpr=2/tour_img/8e7ba73f63a87e1bbaa7224f0ce2e073398ff1a894b5f846b8840a9b49b0e17b.png",
+    description: "Главная пешеходная аллея Центрального парка, упирающаяся в двухъярусную террасу с фонтаном 'Ангел вод'.",
+    fact: "Потолок нижнего яруса террасы украшен 15 000 расписных плиток Minton, созданных в Англии.",
+    audioFile: "audio/bethesda.mp3",
+    audioText: `Добро пожаловать на The Mall и Бетесда-Террас — сердце Центрального парка.
+
+Начните с аллеи. Два ряда американских вязов сходятся над головой, как своды собора. Это одна из немногих прямых линий во всём парке. Олмстед и Вокс специально сделали её такой — чтобы подготовить человека к главному виду.
+
+Идите вперёд. Аллея выводит вас на верхнюю террасу. Отсюда открывается Бетесда — нижняя площадь с фонтаном.
+
+Спуститесь. Ангел Вод стоит в центре. Его создала Эмма Стеббинс — первая женщина, получившая заказ на крупную публичную скульптуру в Нью-Йорке. В руке у ангела лилия — символ чистой воды, которую город получил благодаря Кротонскому акведуку.
+
+Посмотрите на аркаду. Потолок из почти шестнадцати тысяч плиток — единственный в мире потолок, сделанный из энкаустической плитки, которую обычно кладут на пол.
+
+Когда-то здесь собирались, чтобы увидеть и быть увиденными. Потом место приходило в упадок. Потом его вернули к жизни.
+
+Попробуйте постоять у фонтана. Послушать воду. Посмотреть, как люди приходят, садятся на ступени, разговаривают или молчат.
+
+The Mall и Бетесда — это не просто красивая точка парка. Это место, где городская суета на мгновение становится садом.`
+  },
+  {
+    id: "bow-bridge",
+    day: 4,
+    step: 3,
+    name: "Мост Боу-Бридж",
+    nameEn: "Bow Bridge",
+    area: "Central Park",
+    address: "Central Park Bridge No. 8, New York, NY 10024",
+    lat: 40.775730,
+    lng: -73.971840,
+    visitTime: "20 мин",
+    nextStep: "Пешком 10 мин",
+    price: "Бесплатно",
+    hours: "06:00 - 01:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.centralparknyc.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY71m-DBxZodlc7Im_OXXGgfmyhNP83qUmNgkcmEeG7g&s=10",
+    description: "Иззящный чугунный мост в форме изгиба лука, соединяющий Cherry Hill и лесной массив Ramble.",
+    fact: "Второй по старшинству чугунный мост в Америке (1862 г.). Излюбленное место для съемок романтических сцен в кино.",
+    audioFile: "audio/bow-bridge.mp3",
+    audioText: `Добро пожаловать на Боу-Бридж — самый изящный и, возможно, самый романтичный мост Центрального парка.
+
+Остановитесь посредине. Посмотрите вокруг. Мост изогнут мягкой дугой — как лук или смычок. Отсюда и название. Он соединяет холм Черри-Хилл с Рамбл и перекинут через озеро.
+
+Его спроектировали Калверт Вокс и Джейкоб Рей Моулд. Чугун отливали на том же заводе, который делал купол Капитолия в Вашингтоне. Мост закончили в 1862 году.
+
+В отличие от многих других мостов парка, этот не пытается спрятаться. Он специально создан, чтобы его замечали. Перила с переплетёнными кругами, вазоны, тонкие узоры под аркой.
+
+Сегодня здесь часто делают предложения. Люди приходят на рассвете или на закате, чтобы поймать отражение моста в воде.
+
+Постойте немного. Посмотрите, как лодки скользят внизу, как меняется свет на воде, как город остаётся где-то далеко за деревьями.
+
+Боу-Бридж — это не просто переход с одного берега на другой. Это одна из тех тихих точек Нью-Йорка, где можно на несколько минут почувствовать, что город умеет быть нежным.`
+  },
+  {
+    id: "strawberry-fields",
+    day: 4,
+    step: 4,
+    name: "Земляничные поляны и дом Дакота",
+    nameEn: "Strawberry Fields & The Dakota",
+    area: "Upper West Side",
+    address: "W 72nd St & Central Park West, NY 10023",
+    lat: 40.775618,
+    lng: -73.974868,
+    visitTime: "30 мин",
+    nextStep: "Пешком 15 мин",
+    price: "Бесплатно",
+    hours: "06:00 - 01:00",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.centralparknyc.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdYrqJgnUmaiDD-Asco37WaQVMkjZbU08yh4ZtM6C4Eg&s=10",
+    description: "Мемориальная зона Джона Леннона с мозаикой 'Imagine' в парке напротив дома 'Дакота'.",
+    fact: "Мозаика Imagine была создана итальянскими мастерами из Неаполя и подарена Нью-Йорку."
+  },
+  {
+    id: "belvedere",
+    day: 4,
+    step: 5,
+    name: "Замок Бельведер",
+    nameEn: "Belvedere Castle",
+    area: "Central Park",
+    address: "79th St Yard, New York, NY 10021",
+    lat: 40.779430,
+    lng: -73.969140,
+    visitTime: "20 мин",
+    nextStep: "Пешком 15 мин",
+    price: "Бесплатно",
+    hours: "10:00 - 17:00 (Вт-Вс)",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.centralparknyc.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMg31_enqYwYKxFuPMeVfhv5KvgaA3Y5vkcQ3VRe60gQ&s=10",
+    description: "Миниатюрный замок в викторианском стиле на вершине скалы Vista Rock с видом на Turtle Pond.",
+    fact: "С 1919 года замок используется Национальной службой погоды для снятия официальных метеопоказаний."
+  },
+  {
+    id: "met",
+    day: 4,
+    step: 6,
+    name: "Музей Метрополитен (The Met)",
+    nameEn: "The Metropolitan Museum of Art",
+    area: "Upper East Side",
+    address: "1000 5th Ave, New York, NY 10028",
+    lat: 40.779437,
+    lng: -73.963244,
+    visitTime: "2-2,5 ч",
+    nextStep: "Завершение маршрута",
+    price: "$30 для туристов",
+    hours: "10:00 - 17:00 (Пн, Вт, Чт, Вс); Пт-Сб до 21:00. ЗАКРЫТ: Среда",
+    rating: "4.9",
+    photoRating: "5/5",
+    experienceRating: "5/5",
+    timeRating: "4/5",
+    bestTime: "10:00–12:00",
+    budget: "Бесплатно",
+    food: [
+      { name: "Кафе рядом", type: "☕ Кафе", price: "$$" },
+      { name: "Joe Coffee", type: "☕ Кофе", price: "$" }
+    ],
+    url: "https://www.metmuseum.org",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBS74iA7sDUbPDHBZmqhu3nCmq6jN9_fNYwzFbbb3mTQ&s=10",
+    description: "Один из крупнейших и посещаемых художественных музеев мира, охватывающий более 5000 лет мировой культуры.",
+    fact: "В музее полностью собран древнеегипетский Храм Дендур (15 г. до н.э.). Выходной — Среда!"
+  }
+];
+    // Инициализация карты (OpenStreetMap без ключей)
+    const map = L.map("map").setView([40.75, -73.985], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    let markerLayer = L.layerGroup().addTo(map);
+    let routeLine = null;
+    let selectedDay = 1;
+    let miniMap = null;
+
+    const buttons = document.getElementById("dayButtons");
+    const places = document.getElementById("places");
+    const dayBanner = document.getElementById("dayBanner");
+
+    function renderDays() {
+      buttons.innerHTML = "";
+      for (let day = 1; day <= 4; day++) {
+        const button = document.createElement("button");
+        button.className = "day-btn" + (day === selectedDay ? " active" : "");
+        button.innerHTML = `День ${day}`;
+        button.onclick = () => { selectedDay = day; renderDays(); renderPlaces(); };
+        buttons.appendChild(button);
+      }
+    }
+
+    function renderPlaces() {
+      const items = attractions.filter(a => a.day === selectedDay);
+      const info = dayInfo[selectedDay];
+
+      dayBanner.innerHTML = `
+        <div>
+          <h2>${info.title}</h2>
+          <p style="color: #94a3b8; font-size: 14px;">${info.summary}</p>
+        </div>
+        <div class="day-meta">
+          <span class="meta-tag">🚶 ${info.distance}</span>
+          <span class="meta-tag">🚇 ${info.transport}</span>
+        </div>
+      `;
+
+      places.innerHTML = "";
+      markerLayer.clearLayers();
+      if (routeLine) map.removeLayer(routeLine);
+
+      const routePoints = [];
+
+      items.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "place-card";
+        card.innerHTML = `
+          <div class="card-img-wrap">
+            <img src="${item.image}" alt="${item.name}" loading="lazy">
+            <span class="step-badge">#${item.step}</span>
+            ${item.audioFile ? `<span class="audio-badge">🎧 Аудио</span>` : ""}
+          </div>
+          <div class="card-body">
+            <div class="card-area">${item.area}</div>
+            <h3 class="card-title">${item.name}</h3>
+            <p class="card-desc">${item.description}</p>
+            <div class="card-footer">
+              <span class="card-time">⏱ ${item.visitTime}</span>
+              <button class="btn-open" onclick="openObjectPage('${item.id}')">Открыть →</button>
+            </div>
+          </div>
+        `;
+        card.onclick = () => openObjectPage(item.id);
+        places.appendChild(card);
+
+        const customIcon = L.divIcon({
+          className: "custom-pin",
+          html: `<div style="background:#f43f5e;color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;border:2px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,0.4);">${item.step}</div>`,
+          iconSize: [26, 26], iconAnchor: [13, 13]
+        });
+
+        L.marker([item.lat, item.lng], { icon: customIcon }).addTo(markerLayer);
+        routePoints.push([item.lat, item.lng]);
+      });
+
+      if (routePoints.length > 1) {
+        routeLine = L.polyline(routePoints, { color: "#f43f5e", weight: 4, opacity: 0.85, dashArray: "6, 6" }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [35, 35] });
+      }
+    }
+
+    function openObjectPage(id) {
+      const item = attractions.find(a => a.id === id);
+      if (!item) return;
+
+      document.getElementById("detailImg").src = item.image;
+      document.getElementById("detailTitle").textContent = item.name;
+      document.getElementById("detailSubtitle").textContent = `${item.area} • Остановка #${item.step} • ⏱ ${item.visitTime}`;
+      document.getElementById("detailDescription").textContent = item.description;
+      document.getElementById("detailFact").textContent = item.fact;
+      document.getElementById("detailAddress").textContent = item.address;
+      document.getElementById("detailPrice").textContent = item.price;
+      document.getElementById("detailHours").textContent = item.hours;
+      
+      const urlEl = document.getElementById("detailUrl");
+      urlEl.href = item.url;
+      urlEl.textContent = item.url === "#" ? "Официальный сайт" : item.url;
+
+      // Настройка MP3 аудиоплеера
+      const audioBox = document.getElementById("audioPlayerBox");
+      const audioElement = document.getElementById("audioElement");
+      const audioSource = document.getElementById("audioSource");
+      const audioDescText = document.getElementById("audioDescText");
+
+      if (item.audioFile) {
+        audioBox.style.display = "block";
+        audioSource.src = item.audioFile;
+        audioElement.load(); // перезагружаем аудиофайл
+        audioDescText.textContent = item.audioText || "Прослушайте аудиогид по этой локации";
+      } else {
+        audioBox.style.display = "none";
+        audioElement.pause();
+      }
+
+      document.getElementById("homePage").style.display = "none";
+      document.getElementById("detailPage").style.display = "block";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      setTimeout(() => {
+        if (miniMap) miniMap.remove();
+        miniMap = L.map("miniMap").setView([item.lat, item.lng], 15);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(miniMap);
+        L.marker([item.lat, item.lng]).addTo(miniMap);
+      }, 100);
+    }
+
+    function goHome() {
+      // Останавливаем аудио при возврате
+      const audioElement = document.getElementById("audioElement");
+      if (audioElement) audioElement.pause();
+
+      document.getElementById("detailPage").style.display = "none";
+      document.getElementById("homePage").style.display = "block";
+      map.invalidateSize();
+    }
+
+    renderDays();
+    renderPlaces();
+  </script>
+</body>
+</html>
